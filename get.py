@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 import requests
 from requests.auth import HTTPBasicAuth
@@ -28,4 +29,7 @@ print("""
 """)
 print(os.environ['JIRA_BASE_URL'])
 r = requests.get(JIRA_VELOCITY_URL, auth=HTTPBasicAuth(os.environ['JIRA_USER'], os.environ['JIRA_PASSWORD']))
-print(r)
+
+# Write velocity to file
+f = open("out/velocity.json", "w+")
+f.write(json.dumps(r.json(), indent=4))
