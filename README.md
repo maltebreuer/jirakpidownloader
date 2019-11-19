@@ -1,5 +1,6 @@
 # jirakpidownloader
-JIRA KPI Downloader
+
+Extracts specific Scrum-oriented KPIs from a running JIRA instance.
 
 ## Prerequisites
 
