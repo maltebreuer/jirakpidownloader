@@ -7,6 +7,11 @@ from requests.auth import HTTPBasicAuth
 def writeJsonToFile(outFile, jsonObject):
      f = open("out/" + outFile, "w+")
      f.write(json.dumps(jsonObject, indent=4))
+    if not os.path.exists("out"):
+        os.makedirs("out")
+    f = open("out/" + outFile, "w+")
+    f.write(json.dumps(jsonObject, indent=4))
+    
 
 # Load the environment variables from .env
 load_dotenv()
