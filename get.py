@@ -21,7 +21,10 @@ JIRA_VELOCITY_URL = os.environ['JIRA_BASE_URL'] + "/rest/greenhopper/latest/rapi
 JIRA_ISSUETYPES = os.environ['JIRA_BASE_URL'] + "/rest/api/2/issuetype"
 JIRA_STATUS = os.environ['JIRA_BASE_URL'] + "/rest/api/2/status"
 JIRA_SPRINTS = os.environ['JIRA_BASE_URL'] + "/rest/agile/latest/board/" + os.environ['RAPID_BOARD_ID'] + "/sprint"
-JIRA_PROJECT_ISSUES = os.environ['JIRA_BASE_URL'] + "/rest/api/2/search?jql=project%3D" + os.environ['PROJECT_KEY'] + "&maxResults=1000&fields=id%2Ckey%2Cissuetype%2Cresolution%2Cresolutiondate%2Ccreator%2Csubtasks%2Ccreated%2Creporter%2Cpriority%2Cupdated%2Cstatus%2Cparent%2CfixVersions%2Ccustomfield_12405%2Ccustomfield_12406&expand=changelog"
+JIRA_PROJECT_ISSUES = os.environ['JIRA_BASE_URL'] + "/rest/api/2/search?jql=project%3D" + os.environ['PROJECT_KEY']\
+                      + "&maxResults=1000&fields=id%2Ckey%2Cissuetype%2Cresolution%2Cresolutiondate%2Ccreator"\
+                      +"%2Csubtasks%2Ccreated%2Creporter%2Cpriority%2Cupdated%2Cstatus%2Cparent%2CfixVersions"\
+                      +"%2Ccustomfield_12405%2Ccustomfield_12406&expand=changelog"
 
 print("""
      ██╗██╗██████╗  █████╗     ██╗  ██╗██████╗ ██╗
