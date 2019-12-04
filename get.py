@@ -1,9 +1,11 @@
-import numbers
 import os
 import json
+
 from dotenv import load_dotenv
 import requests
 from requests.auth import HTTPBasicAuth
+
+from burndown import Burndown
 
 JIRA_USER = ""
 JIRA_PASSWORD = ""
@@ -20,6 +22,8 @@ JSON_OUT_DIRECTORY = ""
 
 JSON_OUT_DIRECTORY = ""
 
+ENFORCE_SSL = True
+
 
 def load_settings():
     global JIRA_USER
@@ -33,6 +37,8 @@ def load_settings():
     global JIRA_SPRINTS
     global JIRA_PROJECT_ISSUES
     global JSON_OUT_DIRECTORY
+
+    global ENFORCE_SSL
 
     # Load the environment variables from .env
 
@@ -60,6 +66,8 @@ def load_settings():
 
     JSON_OUT_DIRECTORY = os.environ['JSON_OUT_DIRECTORY']
 
+    ENFORCE_SSL = os.environ['ENFORCE_SSL'].lower() == "true"
+
 
 def cleanup():
     for root, dirs, files in os.walk(JSON_OUT_DIRECTORY):
@@ -78,26 +86,26 @@ def get_data():
     print(os.environ['JIRA_BASE_URL'])
 
     print("Getting velocity...")
-    r_velocity = requests.get(JIRA_VELOCITY_URL, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD))
+    r_velocity = requests.get(JIRA_VELOCITY_URL, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD), verify=ENFORCE_SSL)
     write_json_to_file("velocity.json", r_velocity.json())
     print("Getting issue types...")
-    r_issuetypes = requests.get(JIRA_ISSUETYPES, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD))
+    r_issuetypes = requests.get(JIRA_ISSUETYPES, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD), verify=ENFORCE_SSL)
     write_json_to_file("issuetypes.json", r_issuetypes.json())
     print("Getting status...")
-    r_status = requests.get(JIRA_STATUS, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD))
+    r_status = requests.get(JIRA_STATUS, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD), verify=ENFORCE_SSL)
     write_json_to_file("status.json", r_status.json())
     print("Getting sprint data...")
-    r_sprints = requests.get(JIRA_SPRINTS, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD))
+    r_sprints = requests.get(JIRA_SPRINTS, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD), verify=ENFORCE_SSL)
     write_json_to_file("sprints.json", r_sprints.json())
     print("Getting issue data...")
-    r_issues = requests.get(JIRA_PROJECT_ISSUES, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD))
+    r_issues = requests.get(JIRA_PROJECT_ISSUES, auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD), verify=ENFORCE_SSL)
     write_json_to_file("issues.json", r_issues.json())
 
     r_sprintreports = get_sprint_reports(r_sprints.json())
     write_json_to_file("sprintreports.json", r_sprintreports)
 
-    r_burndowns = get_burndowns(r_sprints.json())
-    r_velocity = get_velocity_from_burndowns(r_burndowns)
+    r_velocity_and_more = get_velocity_and_more(r_sprints)
+    write_json_to_file("velocity-and-more.json", r_velocity_and_more)
 
 
 def get_sprint_reports(sprint_data):
@@ -112,8 +120,14 @@ def get_sprint_reports(sprint_data):
 
 
 def get_sprint_report(sprint_id):
-    report = requests.get(JIRA_SPRINTREPORT + str(sprint_id), auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD))
+    report = requests.get(JIRA_SPRINTREPORT + str(sprint_id), auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD),
+                          verify=ENFORCE_SSL)
     return report.json()
+
+
+def get_velocity_and_more(sprints):
+    r_burndowns = get_burndowns(sprints.json())
+    return get_velocity_and_more_from_burndowns(r_burndowns)
 
 
 def get_burndowns(sprint_data):
@@ -125,87 +139,93 @@ def get_burndowns(sprint_data):
 
 
 def get_burndown(sprint_id):
-    burndown = requests.get(JIRA_BURNDOWN + str(sprint_id), auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD))
+    burndown = requests.get(JIRA_BURNDOWN + str(sprint_id), auth=HTTPBasicAuth(JIRA_USER, JIRA_PASSWORD),
+                            verify=ENFORCE_SSL)
     burndown = burndown.json()
     burndown["sprint.id"] = sprint_id
     return burndown
 
 
-def get_velocity_from_burndowns(burndowns):
-    # TODO: WIP
+def get_velocity_and_more_from_burndowns(burndowns):
     velocities = {"data": []}
     for sprint_id in burndowns:
-        velocity = {"sprint.id": sprint_id}
-        initial_estimate = get_initial_estimated_from_burndown(burndowns[sprint_id])
+        velocity = {"sprint.id": sprint_id,
+                    "data": extract_data_from_burndown(burndowns[sprint_id]).to_dictionary()}
         velocities["data"].append(velocity)
     return velocities
 
 
-def get_initial_estimated_from_burndown(burndown):
-    # TODO: WIP
-    issues_added_before_sprint_start = {}
-    changes = burndown["changes"]
-    sprint_start = burndown["startTime"]
+def extract_data_from_burndown(burndown_raw):
+    burndown = Burndown()
 
-    for time in changes:
-        if int(time) <= sprint_start:
-            for change in changes[time]:
-                if change["key"] not in issues_added_before_sprint_start:
-                    issues_added_before_sprint_start[change["key"]] = \
-                        {"estimate":
-                             {"time": None, "value": None},
-                         "added":
-                             {"time": None, "value": None},
-                         "done":
-                             {"time": None, "value": None}
-                         }
-                for changeType in change:
-                    # The following change types have been observed:
-                    #
-                    # statC : Base statistic change. Seems to contain changes regarding estimation
-                    # added : Issues has been added/removed from Sprint
-                    # key   : Issue Key as seen in Jira
-                    # column: Changes in the Sprint board column
-                    if changeType == "statC":
-                        if "newValue" in change["statC"]:
-                            cur_time = issues_added_before_sprint_start[change["key"]]["estimate"]["time"]
-                            if cur_time is None or int(time) > cur_time:
-                                issues_added_before_sprint_start[change["key"]]["estimate"]["time"] = int(time)
-                                issues_added_before_sprint_start[change["key"]]["estimate"]["value"] \
-                                    = change["statC"]["newValue"]
-                    elif changeType == "added":
-                        cur_time = issues_added_before_sprint_start[change["key"]]["added"]["time"]
-                        if cur_time is None or int(time) > cur_time:
-                            issues_added_before_sprint_start[change["key"]]["added"]["time"] = int(time)
-                            issues_added_before_sprint_start[change["key"]]["added"]["value"] \
-                                = change["added"]
-                    elif changeType == "key":
-                        pass
-                    elif changeType == "column":
-                        # TODO: Still not exactly clear, how "done" should be handled
-                        if "done" in change["column"]:
-                            cur_time = issues_added_before_sprint_start[change["key"]]["done"]["time"]
-                            if cur_time is None or int(time) > cur_time:
-                                issues_added_before_sprint_start[change["key"]]["done"]["time"] = int(time)
-                                issues_added_before_sprint_start[change["key"]]["done"]["value"] \
-                                    = change["column"]["done"]
-                        pass
-                    else:
-                        raise ValueError("Unhandled value: " + str(changeType))
+    changes = burndown_raw["changes"]
+    sprint_start = burndown_raw["startTime"]
+    sprint_completed = burndown_raw["completeTime"]
+
+    for ch_time in changes:
+        change_time = int(ch_time)
+        for change in changes[ch_time]:
+            issue_key = change["key"]
+            if not burndown.has_issue(issue_key):
+                burndown.add_issue(issue_key)
+            curr_issue = burndown.get_issue(issue_key)
+            for changeType in change:
+                # The following change types have been observed:
+                #
+                # statC : Base statistic change. Seems to contain changes regarding estimation
+                # added : Issues has been added/removed from Sprint
+                # key   : Issue Key as seen in Jira
+                # column: Changes in the Sprint board column
+                if changeType == "statC":
+                    if "newValue" in change["statC"]:
+                        estimate = curr_issue.get_estimate()
+                        stored_change_time_begin = estimate.get_at_beginning().get_time()
+                        stored_change_time_completion = curr_issue.get_estimate().get_on_completion().get_time()
+                        if change_time <= sprint_start:
+                            if stored_change_time_begin is None or change_time > stored_change_time_begin:
+                                estimate.get_at_beginning().set(change_time, change["statC"]["newValue"])
+                        if stored_change_time_completion is None or change_time > stored_change_time_completion:
+                            estimate.get_on_completion().set(change_time, change["statC"]["newValue"])
+                elif changeType == "added":
+                    added = curr_issue.get_added()
+                    stored_change_time_begin = added.get_at_beginning().get_time()
+                    stored_change_time_completion = added.get_on_completion().get_time()
+                    if change_time <= sprint_start:
+                        if stored_change_time_begin is None or change_time > stored_change_time_begin:
+                            added.get_at_beginning().set(change_time, change["added"])
+                    if stored_change_time_completion is None or change_time > stored_change_time_completion:
+                        added.get_on_completion().set(change_time, change["added"])
+                elif changeType == "key":
+                    pass
+                elif changeType == "column":
+                    if "done" in change["column"]:
+                        done = curr_issue.get_done()
+                        stored_change_time_begin = done.get_at_beginning().get_time()
+                        stored_change_time_completion = done.get_on_completion().get_time()
+                        if change_time <= sprint_start:
+                            if stored_change_time_begin is None or change_time > stored_change_time_begin:
+                                done.get_at_beginning().set(change_time, change["column"]["done"])
+                        if stored_change_time_completion is None or \
+                                (stored_change_time_completion < change_time <= sprint_completed):
+                            done.get_on_completion().set(change_time, change["column"]["done"])
+                else:
+                    raise ValueError("Unhandled value: " + str(changeType))
 
     def filter_added(issue):
-        return issue[1]["added"]["value"] is True and issue[1]["done"]["value"] is not True
+        if issue[1].get_added().get_at_beginning().get_value() is not True:
+            issue[1].get_added().get_at_beginning().reset()
+        return issue
 
-    issues_added_before_sprint_start = dict(filter(filter_added, issues_added_before_sprint_start.items()))
+    def filter_completed(issue):
+        if issue[1].get_done().get_on_completion().get_value() is not True:
+            issue[1].get_done().get_on_completion().reset()
+        return issue
 
-    estimate_sum = 0
-    for elem in issues_added_before_sprint_start.items():
-        if isinstance(elem[1]["estimate"]["value"], numbers.Number):
-            estimate_sum += elem[1]["estimate"]["value"]
-    issues_added_before_sprint_start["estimateSum"] = estimate_sum
+    burndown.map(filter_added)
+    burndown.map(filter_completed)
+    burndown.calc()
 
-    print("Sprint " + str(burndown["sprint.id"]) + ": " + json.dumps(issues_added_before_sprint_start))
-    return issues_added_before_sprint_start
+    return burndown
 
 
 print("""
