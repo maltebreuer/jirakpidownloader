@@ -4,3 +4,5 @@
 # Output directory
 out
 auth.env
+.idea/dictionaries/
+__pycache__/
