@@ -1,5 +1,9 @@
+# -*- coding: utf-8 -*-
+
 import os
 import json
+
+import pygame
 
 from dotenv import load_dotenv
 import requests
@@ -23,6 +27,7 @@ JSON_OUT_DIRECTORY = ""
 JSON_OUT_DIRECTORY = ""
 
 ENFORCE_SSL = True
+PLAY_MUSIC = True
 
 
 def load_settings():
@@ -39,6 +44,7 @@ def load_settings():
     global JSON_OUT_DIRECTORY
 
     global ENFORCE_SSL
+    global PLAY_MUSIC
 
     # Load the environment variables from .env
 
@@ -70,6 +76,18 @@ def load_settings():
         ENFORCE_SSL = os.environ['ENFORCE_SSL'].lower() != "false"
     else:
         ENFORCE_SSL = True
+
+    if 'PLAY_MUSIC' in os.environ:
+        PLAY_MUSIC = os.environ['PLAY_MUSIC'].lower() != "false"
+    else:
+        PLAY_MUSIC = True
+
+
+def play_music():
+    pygame.mixer.init()
+    pygame.mixer.music.load('res/BRD - Teleport Pro kg.xm')
+    pygame.mixer.music.set_volume(1)
+    pygame.mixer.music.play(-1, 0)
 
 
 def cleanup():
@@ -255,5 +273,6 @@ print("""
 """)
 
 load_settings()
+play_music()
 cleanup()
 get_data()
