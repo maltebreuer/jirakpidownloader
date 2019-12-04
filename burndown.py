@@ -59,7 +59,8 @@ class Entry:
 
 
 class IssueBurndown:
-    def __init__(self):
+    def __init__(self, name):
+        self._name = name
         self._estimate = Entry()
         self._added = Entry()
         self._done = Entry()
@@ -75,6 +76,7 @@ class IssueBurndown:
 
     def to_dictionary(self):
         return {
+            "name": self._name,
             "estimate": self._estimate.to_dictionary(),
             "added": self._added.to_dictionary(),
             "done": self._done.to_dictionary()
@@ -95,7 +97,7 @@ class Burndown:
         self._number_items_completed = 0
 
     def add_issue(self, name):
-        self._issues[name] = IssueBurndown()
+        self._issues[name] = IssueBurndown(name)
 
     def get_issue(self, name):
         return self._issues[name]
@@ -150,8 +152,9 @@ class Burndown:
             "items-completed:": self._number_items_completed,
             "items-on-completion": self._number_items_on_completion,
             "estimated": self._estimated,
-            "completed": self._completed
+            "completed": self._completed,
+            "issues": []
         }
         for issue in self._issues.items():
-            dic[issue[0]] = issue[1].to_dictionary()
+            dic["issues"].append(issue[1].to_dictionary())
         return dic
