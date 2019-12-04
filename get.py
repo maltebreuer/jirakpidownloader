@@ -163,7 +163,10 @@ def extract_data_from_burndown(burndown_raw):
 
     changes = burndown_raw["changes"]
     sprint_start = burndown_raw["startTime"]
-    sprint_completed = burndown_raw["completeTime"]
+    if "completeTime" in burndown_raw:
+        sprint_completed = burndown_raw["completeTime"]
+    else:
+        sprint_completed = burndown_raw["endTime"]
 
     for ch_time in changes:
         change_time = int(ch_time)
