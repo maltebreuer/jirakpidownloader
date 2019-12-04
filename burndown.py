@@ -35,7 +35,7 @@ class Pair:
     def to_dictionary(self):
         return {
             "time": self._time,
-            "time_str": self._time_readable,
+            "time-str": self._time_readable,
             "value": self._value
         }
 
@@ -53,8 +53,8 @@ class Entry:
 
     def to_dictionary(self):
         return {
-            "at_beginning": self._at_beginning.to_dictionary(),
-            "on_completion": self._on_completion.to_dictionary()
+            "at-beginning": self._at_beginning.to_dictionary(),
+            "on-completion": self._on_completion.to_dictionary()
         }
 
 
@@ -82,7 +82,11 @@ class IssueBurndown:
 
 
 class Burndown:
-    def __init__(self):
+    def __init__(self, started, completed):
+        self._sprint_started = started
+        self._sprint_started_str = Utils.epoch_with_milli_to_iso(started)
+        self._sprint_completed = completed
+        self._sprint_completed_str = Utils.epoch_with_milli_to_iso(completed)
         self._issues = {}
         self._estimated = None
         self._completed = None
@@ -138,6 +142,10 @@ class Burndown:
 
     def to_dictionary(self):
         dic = {
+            "sprint.started": self._sprint_started,
+            "sprint.started-str": self._sprint_started_str,
+            "sprint.completed": self._sprint_completed,
+            "sprint.completed-str": self._sprint_completed_str,
             "items-at-beginning": self._number_items_at_beginning,
             "items-completed:": self._number_items_completed,
             "items-on-completion": self._number_items_on_completion,

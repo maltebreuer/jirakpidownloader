@@ -152,21 +152,23 @@ def get_burndown(sprint_id):
 def get_velocity_and_more_from_burndowns(burndowns):
     velocities = {"data": []}
     for sprint_id in burndowns:
-        velocity = {"sprint.id": sprint_id,
-                    "data": extract_data_from_burndown(burndowns[sprint_id]).to_dictionary()}
+        data = extract_data_from_burndown(burndowns[sprint_id]).to_dictionary()
+        velocity = {"sprint.id": sprint_id}
+        for data_set in data.items():
+            velocity[data_set[0]] = data_set[1]
         velocities["data"].append(velocity)
     return velocities
 
 
 def extract_data_from_burndown(burndown_raw):
-    burndown = Burndown()
-
     changes = burndown_raw["changes"]
     sprint_start = burndown_raw["startTime"]
     if "completeTime" in burndown_raw:
         sprint_completed = burndown_raw["completeTime"]
     else:
         sprint_completed = burndown_raw["endTime"]
+
+    burndown = Burndown(sprint_start, sprint_completed)
 
     for ch_time in changes:
         change_time = int(ch_time)
