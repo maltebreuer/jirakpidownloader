@@ -66,7 +66,10 @@ def load_settings():
 
     JSON_OUT_DIRECTORY = os.environ['JSON_OUT_DIRECTORY']
 
-    ENFORCE_SSL = os.environ['ENFORCE_SSL'].lower() == "true"
+    if 'ENFORCE_SSL' in os.environ:
+        ENFORCE_SSL = os.environ['ENFORCE_SSL'].lower() != "false"
+    else:
+        ENFORCE_SSL = True
 
 
 def cleanup():
